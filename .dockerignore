@@ -1,0 +1,48 @@
+**/.DS_Store
+**/.idea
+**/.vscode
+
+# Исключаем виртуальные окружения и кэш Python
+**/.venv
+**/venv
+**/env
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Игнорируем файлы зависимостей и сборки
+**/Pipfile
+**/Pipfile.lock
+**/poetry.lock  # НЕ ИГНОРИРОВАТЬ, если используем Poetry!
+**/setup.py
+**/dist
+**/build
+**/*.egg-info
+
+# Исключаем тесты и документацию
+**/tests
+**/test
+**/docs
+**/*.md
+
+# Игнорируем Git-файлы
+.git
+.gitignore
+.gitmodules
+
+# Исключаем конфиги и секреты
+**/.env
+**/.flaskenv
+**/secrets.yml
+**/credentials.json
+
+# Игнорируем логи и временные файлы
+**/*.log
+**/*.tmp
+**/tmp
+
+# Исключаем статические ресурсы (если не нужны)
+**/node_modules
+**/static
+**/assets% 
