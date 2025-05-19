@@ -9,9 +9,16 @@ services:
     working_dir: /app
     env_file:
       - .env-dev
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - POSTGRES_DB=fast
+      - POSTGRES_USER=projectuser
+      - POSTGRES_PASSWORD=123
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+    command: sh -c "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     networks:
       - my_app_network
 
@@ -19,14 +26,21 @@ services:
   database:
     image: postgres:17-alpine
     container_name: postgresapp_fastapi
-    env_file: 
-      - .env-dev
+    environment:
+      - POSTGRES_USER=projectuser
+      - POSTGRES_PASSWORD=123
+      - POSTGRES_DB=fast
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - my_app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U projectuser -d fast"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 
 networks:
