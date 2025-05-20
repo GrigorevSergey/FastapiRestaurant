@@ -16,9 +16,9 @@ class SMSService:
     def send_sms(self, phone: str):
         code = self.generate_code()
         self._storage[phone] = code
-        print(f"[DEBUG] SMS код для {phone}: {code}")
+        print(f"SMS код для {phone}: {code}")
 
     def verify_code(self, phone: str, code: str) -> bool:
         stored_code = self._storage.get(phone)
-        print(f"[DEBUG] Проверка кода для {phone}: получен {code}, сохранен {stored_code}")
+        print(f"Проверка кода для {phone}: получен {code}, сохранен {stored_code}")
         return stored_code == code

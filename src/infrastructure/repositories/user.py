@@ -47,7 +47,7 @@ class UserRepository:
         update_data = user_update.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             if field == "password":
-                setattr(db_user, "hashed_password", value)  # В реальном приложении здесь должно быть хеширование
+                setattr(db_user, "hashed_password", value) 
             else:
                 setattr(db_user, field, value)
 

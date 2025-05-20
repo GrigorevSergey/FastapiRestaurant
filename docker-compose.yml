@@ -21,6 +21,16 @@ services:
         condition: service_healthy
     networks:
       - my_app_network
+  
+  rabbitmq:
+    image: rabbitmq:4.1.0-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - my_app_network
 
 
   database:
@@ -49,3 +59,4 @@ networks:
 
 volumes:
   postgres_data:
+  rabbitmq_data:
