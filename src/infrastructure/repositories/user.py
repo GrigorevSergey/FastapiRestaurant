@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from src.infrastructure.models.user import User
 from src.domain.user import UserCreate, UserUpdate, UserInDB
+from src.core.security import get_password_hash
 
 class UserRepository:
     def __init__(self, session: AsyncSession):
@@ -12,7 +13,7 @@ class UserRepository:
             name=user.name,
             email=user.email,
             number_phone=user.number_phone,
-            hashed_password=user.password,
+            hashed_password=get_password_hash(user.password),
             is_admin=user.is_admin,
             is_phone_verified=user.is_phone_verified
         )
@@ -54,3 +55,13 @@ class UserRepository:
         await self.session.commit()
         await self.session.refresh(db_user)
         return db_user
+
+    async def make_admin(self, phone: str) -> User:
+        user = await self.get_by_phone(phone)
+        if not user:
+            raise ValueError("Пользователь не найден")
+        
+        user.is_admin = True
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user

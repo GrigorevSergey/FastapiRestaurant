@@ -9,9 +9,10 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str
     DATABASE_URL: str
     SECRET_KEY: str
-    JWT_ALGORITHM: str
-    ACCESS_TOKEN_EXPIRE: int
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE: int = 30
     SUPERUSER_PASSWORD: str
+    DB_ECHO_LOG: bool = False
 
     class Config:
         env_file = ".env-dev"

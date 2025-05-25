@@ -9,12 +9,6 @@ services:
     working_dir: /app
     env_file:
       - .env-dev
-    environment:
-      - POSTGRES_DB=fast
-      - POSTGRES_USER=projectuser
-      - POSTGRES_PASSWORD=123
-      - POSTGRES_HOST=database
-      - POSTGRES_PORT=5432
     command: sh -c "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
     depends_on:
       database:
