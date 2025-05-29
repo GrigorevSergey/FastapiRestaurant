@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from src.infrastructure.models.user import User
-from src.domain.user import UserCreate, UserUpdate, UserInDB
+from src.domain.user import UserCreate, UserUpdate
 from src.core.security import get_password_hash
 
 class UserRepository:

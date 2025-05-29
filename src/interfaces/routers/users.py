@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
 router = APIRouter(prefix="/users", tags=["users"])
 
 
+
 @router.get("/", response_model=UserResponse)
 async def read_users(
     current_user: Annotated[User, Depends(get_current_user)]

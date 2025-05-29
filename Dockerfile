@@ -1,12 +1,8 @@
-FROM python:3.13-slim AS base
+FROM python:3.13.3-alpine AS build
 
 WORKDIR /app
 
-EXPOSE 8000
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl
 
 RUN curl -sSL https://install.python-poetry.org | python3 -
 
@@ -17,13 +13,15 @@ COPY pyproject.toml poetry.lock ./
 RUN poetry config virtualenvs.create false && \
     poetry install --no-interaction --no-ansi --no-root
 
-
-FROM python:3.13-slim
+FROM python:3.13.3-alpine
 
 WORKDIR /app
-    
-COPY --from=base /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=base /usr/local/bin /usr/local/bin
-    
+
+COPY --from=build /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=build /usr/local/bin /usr/local/bin
+COPY --from=build /root/.local/bin/poetry /usr/local/bin/poetry
+
 COPY . .
+
+EXPOSE 8000
 

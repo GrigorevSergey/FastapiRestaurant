@@ -9,6 +9,8 @@ from alembic import context
 
 from src.database import Base
 from src.core.config import settings
+from src.infrastructure.models.user import User
+from src.infrastructure.models.menu import *
 
 config = context.config
 

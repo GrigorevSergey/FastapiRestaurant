@@ -20,3 +20,7 @@ async def get_db() -> AsyncSession:
             raise ex
         finally:
             await session.close()
+            
+            
+
+
