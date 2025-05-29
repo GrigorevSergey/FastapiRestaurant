@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
@@ -28,6 +29,17 @@ class TagResponse(BaseModel):
     id: int
     name: str
     
+    class Config:
+        from_attributes = True
+        
+        
+class ComboResponse(BaseModel):
+    id: int
+    name: str
+    description: str
+    price: float
+    dish_ids: List[int]
+
     class Config:
         from_attributes = True
     
@@ -202,4 +214,81 @@ async def delete_tag(
     return {"detail": "Tag deleted successfully"}
 
 
+@router.get("/combo_sets", response_model=list[ComboResponse])
+async def get_combos(db: AsyncSession = Depends(get_db)):
+    combos = await MenuRepository(db).get_combos()
+    return [
+        ComboResponse(
+            id=combo.id,
+            name=combo.name,
+            description=combo.description,
+            price=combo.price,
+            dish_ids=[dish.id for dish in combo.dishes]
+        ) for combo in combos
+    ]
+    
+@router.get("/combo_sets/{combo_id}", response_model=ComboResponse)
+async def get_combo(
+    combo_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    combo = await MenuRepository(db).get_combo(combo_id)
+    if not combo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Combo not found"
+        )
+    return ComboResponse(
+        id=combo.id,
+        name=combo.name,
+        description=combo.description,
+        price=combo.price,
+        dish_ids=[dish.id for dish in combo.dishes]
+    )
+
+@router.post("/combo_sets", response_model=ComboResponse)
+async def create_combo(
+    combo: ComboResponse,
+    db: AsyncSession = Depends(get_db)
+):
+    new_combo = await MenuRepository(db).create_combo(combo)
+    return ComboResponse(
+        id=new_combo.id,
+        name=new_combo.name,
+        description=new_combo.description,
+        price=new_combo.price,
+        dish_ids=[dish.id for dish in new_combo.dishes]
+    )
+    
+@router.put("/combo_sets/{combo_id}", response_model=ComboResponse)
+async def update_combo(
+    combo_id: int,
+    combo: ComboResponse,
+    db: AsyncSession = Depends(get_db)
+):
+    updated_combo = await MenuRepository(db).update_combo(combo_id, combo)
+    if not updated_combo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Combo not found"
+        )
+    return ComboResponse(
+        id=updated_combo.id,
+        name=updated_combo.name,
+        description=updated_combo.description,
+        price=updated_combo.price,
+        dish_ids=[dish.id for dish in updated_combo.dishes]
+    )
+@router.delete("/combo_sets/{combo_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_combo(
+    combo_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    deleted = await MenuRepository(db).delete_combo(combo_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Combo not found"
+        )
+    return {"detail": "Combo deleted successfully"}
 

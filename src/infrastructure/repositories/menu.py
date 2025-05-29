@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from src.infrastructure.models.menu import Category, Dish, Tag
-from src.domain.menu import CategoryCreate, DishCreate, CategoryUpdate, DishUpdate, TagCreate, TagUpdate
+from src.infrastructure.models.menu import Category, Dish, Tag, ComboSet
+from src.domain.menu import CategoryCreate, DishCreate, CategoryUpdate, DishUpdate, TagCreate, TagUpdate, ComboSetCreate, ComboSetUpdate
 
 
 class MenuRepository:
@@ -139,6 +139,67 @@ class MenuRepository:
         if not db_tag:
             return False
         await self.session.delete(db_tag)
+        await self.session.commit()
+        return True
+    
+    async def get_dish_id(self, dish_id: int) -> Dish | None:
+        result = await self.session.execute(
+            select(Dish).where(Dish.id == dish_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_combo(self, combo: ComboSetCreate) -> ComboSet:
+        db_combo = ComboSet(name=combo.name, description=combo.description, price=combo.price)
+        if combo.dish_ids:
+            for dish_id in combo.dish_ids:
+                dish = await self.get_dish_by_id(dish_id)
+                if dish:
+                    db_combo.dishes.append(dish)
+        self.session.add(db_combo)
+        await self.session.commit()
+        await self.session.refresh(db_combo)
+        return db_combo
+
+    async def update_combo(self, combo_id: int, combo: ComboSetUpdate) -> ComboSet | None:
+        db_combo = await self.get_combo_by_id(combo_id)
+        if not db_combo:
+            return None
+        if combo.name is not None:
+            db_combo.name = combo.name
+        if combo.description is not None:
+            db_combo.description = combo.description
+        if combo.price is not None:
+            db_combo.price = combo.price
+        if combo.dish_ids is not None:
+            for dish_id in combo.dish_ids:
+                dish = await self.get_dish_id(dish_id)
+                
+            db_combo.dishes.clear()
+            for dish_id in combo.dish_ids:
+                dish = await self.get_dish_id(dish_id)
+                db_combo.dishes.append(dish)
+
+        await self.session.commit()
+        await self.session.refresh(db_combo)
+        return db_combo
+
+    async def get_combo_id(self, combo_id: int) -> ComboSet | None:
+        result = await self.session.execute(
+            select(ComboSet).where(ComboSet.id == combo_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_combos(self, limit: int = 10, offset: int = 0) -> list[ComboSet]:
+        result = await self.session.execute(
+            select(ComboSet).offset(offset).limit(limit)
+        )
+        return result.scalars().all()
+
+    async def delete_combo(self, combo_id: int) -> bool:
+        db_combo = await self.get_combo_by_id(combo_id)
+        if not db_combo:
+            return False
+        await self.session.delete(db_combo)
         await self.session.commit()
         return True
     

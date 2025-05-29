@@ -38,3 +38,18 @@ class TagCreate(Tag):
 class TagUpdate(Tag):
     pass
 
+
+class ComboSet(BaseModel):
+    id: int
+    name: str
+    description: str
+    price: int
+    
+    
+class ComboSetCreate(ComboSet):
+    pass
+
+
+class ComboSetUpdate(ComboSet):
+    pass
+

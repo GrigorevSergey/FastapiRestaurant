@@ -29,6 +29,16 @@ class TagUpdate(BaseModel):
     name: str
 
 
+class ComboSetCreate(BaseModel):
+    name: str
+    description: str
+    price: int
+    
+
+class ComboSetUpdate(BaseModel):
+    name: str
+    description: str
+    price: int
 
 
     
