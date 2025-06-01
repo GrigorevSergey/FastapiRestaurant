@@ -152,7 +152,7 @@ class MenuRepository:
         db_combo = ComboSet(name=combo.name, description=combo.description, price=combo.price)
         if combo.dish_ids:
             for dish_id in combo.dish_ids:
-                dish = await self.get_dish_by_id(dish_id)
+                dish = await self.get_dish_id(dish_id)
                 if dish:
                     db_combo.dishes.append(dish)
         self.session.add(db_combo)
@@ -161,7 +161,7 @@ class MenuRepository:
         return db_combo
 
     async def update_combo(self, combo_id: int, combo: ComboSetUpdate) -> ComboSet | None:
-        db_combo = await self.get_combo_by_id(combo_id)
+        db_combo = await self.get_combo_id(combo_id)
         if not db_combo:
             return None
         if combo.name is not None:
@@ -196,7 +196,7 @@ class MenuRepository:
         return result.scalars().all()
 
     async def delete_combo(self, combo_id: int) -> bool:
-        db_combo = await self.get_combo_by_id(combo_id)
+        db_combo = await self.get_combo_id(combo_id)
         if not db_combo:
             return False
         await self.session.delete(db_combo)

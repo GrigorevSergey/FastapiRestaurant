@@ -1,33 +1,67 @@
 services:
-  web-app:
+  users-service:
     build:
       context: .
+      dockerfile: Dockerfile.users
     ports:
       - '8000:8000'
-    volumes:
-      - .:/app/
-    working_dir: /app
     env_file:
-      - .env-dev
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+      - .env-prod
+    environment:
+      - DATABASE_SCHEMA=public
+      - SERVICE_NAME=users
+    command: uvicorn src.users_main:app --host 0.0.0.0 --port 8000
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     networks:
       - my_app_network
 
+  menu-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.menu
+    ports:
+      - '8001:8001'
+    env_file:
+      - .env-prod
+    environment:
+      - DATABASE_SCHEMA=menu
+      - SERVICE_NAME=menu
+    command: uvicorn src.menu_main:app --host 0.0.0.0 --port 8001
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - my_app_network
+
+  rabbitmq:
+    image: rabbitmq:4.1.0-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - my_app_network
 
   database:
     image: postgres:17-alpine
     container_name: postgresapp_fastapi
     env_file: 
-      - .env-dev
+      - .env-prod
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
     networks:
       - my_app_network
-
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U projectuser -d fast"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 networks:
   my_app_network: 
@@ -35,3 +69,4 @@ networks:
 
 volumes:
   postgres_data:
+  rabbitmq_data:

@@ -23,5 +23,8 @@ COPY --from=build /root/.local/bin/poetry /usr/local/bin/poetry
 
 COPY . .
 
+ENV SERVICE_NAME=users
+ENV DATABASE_SCHEMA=public
+
 EXPOSE 8000
 

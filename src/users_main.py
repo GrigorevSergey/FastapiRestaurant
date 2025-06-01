@@ -1,16 +1,15 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from src.interfaces.routers import auth, users
-from src.interfaces.routers.v1 import menu as menu_v1
-from src.interfaces.routers.v2 import menu as menu_v2
 
-
-app = FastAPI()
+app = FastAPI(
+    title="Users Service API",
+    description="API для управления пользователями и аутентификацией",
+    version="1.0.0"
+)
 
 app.include_router(auth.router)
 app.include_router(users.router)
-app.include_router(menu_v1.router, prefix="/menu1", tags=["v1"])
-app.include_router(menu_v2.router, prefix="/menu2", tags=["v2"])
 
 @app.exception_handler(HTTPException)
 async def app_exception_handler(request: Request, exc: HTTPException):
@@ -24,5 +23,4 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"}
-    )
-
+    ) 

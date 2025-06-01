@@ -1,7 +1,8 @@
 services:
-  web-app:
+  users-service:
     build:
       context: .
+      dockerfile: Dockerfile.users
     ports:
       - '8000:8000'
     volumes:
@@ -9,13 +10,37 @@ services:
     working_dir: /app
     env_file:
       - .env-dev
-    command: sh -c "uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      - DATABASE_SCHEMA=public
+      - SERVICE_NAME=users
+    command: sh -c "uvicorn src.users_main:app --host 0.0.0.0 --port 8000 --reload"
     depends_on:
       database:
         condition: service_healthy
     networks:
       - my_app_network
-  
+
+  menu-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.menu
+    ports:
+      - '8001:8001'
+    volumes:
+      - .:/app/
+    working_dir: /app
+    env_file:
+      - .env-dev
+    environment:
+      - DATABASE_SCHEMA=menu
+      - SERVICE_NAME=menu
+    command: sh -c "uvicorn src.menu_main:app --host 0.0.0.0 --port 8001 --reload"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - my_app_network
+
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
     ports:
@@ -25,7 +50,6 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - my_app_network
-
 
   database:
     image: postgres:17-alpine
@@ -38,6 +62,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
     networks:
       - my_app_network
     healthcheck:
@@ -45,7 +70,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
 
 networks:
   my_app_network: 

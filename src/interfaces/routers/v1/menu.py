@@ -115,7 +115,7 @@ async def get_dishes_by_category(
     category_id: int,
     db: AsyncSession = Depends(get_db)
 ):
-    dishes = await MenuRepository(db).get_dishes_category(category_id)
+    dishes = await MenuRepository(db).get_dishes_category_id(category_id)
     if not dishes:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
