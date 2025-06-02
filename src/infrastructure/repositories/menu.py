@@ -2,11 +2,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from src.infrastructure.models.menu import Category, Dish, Tag, ComboSet
 from src.domain.menu import CategoryCreate, DishCreate, CategoryUpdate, DishUpdate, TagCreate, TagUpdate, ComboSetCreate, ComboSetUpdate
+from src.redis import cache, invalidate_cache
 
 
 class MenuRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
+        
+    @cache()
+    async def get_categories(self, limit: int = 10, offset: int = 0) -> list[Category]:
+        result = await self.session.execute(
+            select(Category).offset(offset).limit(limit)
+        )
+        return result.scalars().all()
 
     async def create_category(self, category: CategoryCreate) -> Category:
         db_category = Category(
@@ -16,6 +24,7 @@ class MenuRepository:
         self.session.add(db_category)
         await self.session.commit()
         await self.session.refresh(db_category)
+        await invalidate_cache("get_category_id*")
         return db_category
     
     async def update_category(self, category_id: int, category: CategoryUpdate) -> Category | None:
@@ -26,6 +35,8 @@ class MenuRepository:
         db_category.description = category.description
         await self.session.commit()
         await self.session.refresh(db_category)
+        await invalidate_cache(f"get_category_id*{category_id}*")
+        await invalidate_cache("get_category_id*")
         return db_category
     
     async def get_category_id(self, category_id: int) -> Category | None:
@@ -34,20 +45,31 @@ class MenuRepository:
         )
         return result.scalar_one_or_none()
     
-    async def get_categories(self, limit: int = 10, offset: int = 0) -> list[Category]:
-        result = await self.session.execute(
-            select(Category).offset(offset).limit(limit)
-        )
-        return result.scalars().all()
-    
     async def delete_category(self, category_id: int) -> bool:  
         db_category = await self.get_category_by_id(category_id)
         if not db_category:
             return False
         await self.session.delete(db_category)
         await self.session.commit()
+        await invalidate_cache("get_categories*")
+        await invalidate_cache(f"get_category_id*{category_id.id}*")
         return True
 
+    @cache()
+    async def get_dishes(self, limit: int = 10, offset: int = 0) -> list[Dish]:
+        result = await self.session.execute(
+            select(Dish).limit(limit).offset(offset)
+        )
+        await invalidate_cache("get_dishes*")
+        return result.scalars().all()
+    
+    async def get_dish_id(self, dish_id: int) -> Dish | None:
+        result = await self.session.execute(
+            select(Dish).where(Dish.id == dish_id)
+        )
+        await invalidate_cache(f"get_dish_id*{dish_id}*")
+        return result.scalar_one_or_none()
+    
     async def create_dish(self, dish: DishCreate) -> Dish:
         db_dish = Dish(
             name=dish.name,
@@ -58,6 +80,9 @@ class MenuRepository:
         self.session.add(db_dish)
         await self.session.commit()
         await self.session.refresh(db_dish)
+        await invalidate_cache("get_dishes*")
+        await invalidate_cache(f"get_dish_id*{dish.id}*")
+        await invalidate_cache("get_dish_id*")
         return db_dish
     
     async def update_dish(self, dish_id: int, dish: DishUpdate) -> Dish | None:
@@ -70,6 +95,9 @@ class MenuRepository:
         db_dish.category_id = dish.category_id
         await self.session.commit()
         await self.session.refresh(db_dish)
+        await invalidate_cache("get_dishes*")
+        await invalidate_cache(f"get_dish_id*{dish_id}*")
+        await invalidate_cache("get_dish_id*")
         return db_dish
     
     async def delete_dish(self, dish_id: int) -> bool:
@@ -78,36 +106,31 @@ class MenuRepository:
             return False
         await self.session.delete(db_dish)
         await self.session.commit()
+        await invalidate_cache("get_dishes*")
+        await invalidate_cache(f"get_dish_id*{dish_id}*")
+        await invalidate_cache("get_dish_id*")
         return True
-    
-    async def get_dish_id(self, dish_id: int) -> Dish | None:
-        result = await self.session.execute(
-            select(Dish).where(Dish.id == dish_id)
-        )
-        return result.scalar_one_or_none()
-    
-    async def get_dishes(self, limit: int = 10, offset: int = 0) -> list[Dish]:
-        result = await self.session.execute(
-            select(Dish).limit(limit).offset(offset)
-        )
-        return result.scalars().all()
     
     async def get_dishes_category_id(self, category_id: int) -> list[Dish]:
         result = await self.session.execute(
             select(Dish).where(Dish.category_id == category_id)
         )
+        await invalidate_cache(f"get_dishes_category_id*{category_id}*")
         return result.scalars().all()
     
+    @cache()
     async def get_tags(self, limit: int = 10, offset: int = 0) -> list[Tag]:
         result = await self.session.execute(
             select(Tag).limit(limit).offset(offset)
         )
+        await invalidate_cache("get_tags*")
         return result.scalars().all()
     
     async def get_tag_id(self, tag_id: int) -> Tag | None:
         result = await self.session.execute(
             select(Tag).where(Tag.id == tag_id)
         )
+        await invalidate_cache(f"get_tag_id*{tag_id}*")
         return result.scalar_one_or_none()
     
     async def get_tag_name(self, tag_name: str) -> Tag | None:
@@ -123,6 +146,9 @@ class MenuRepository:
         self.session.add(db_tag)
         await self.session.commit()
         await self.session.refresh(db_tag)
+        await invalidate_cache("get_tags*")
+        await invalidate_cache(f"get_tag_id*{tag.id}*")
+        await invalidate_cache("get_tag_id*")
         return db_tag
     
     async def update_tag(self, tag_id: int, tag: TagUpdate) -> Tag | None:  
@@ -132,6 +158,9 @@ class MenuRepository:
         db_tag.name = tag.name
         await self.session.commit()
         await self.session.refresh(db_tag)
+        await invalidate_cache("get_tags*")
+        await invalidate_cache(f"get_tag_id*{tag_id}*")
+        await invalidate_cache("get_tag_id*")
         return db_tag
         
     async def delete_tag(self, tag_id: int) -> bool:
@@ -140,6 +169,9 @@ class MenuRepository:
             return False
         await self.session.delete(db_tag)
         await self.session.commit()
+        await invalidate_cache("get_tags*")
+        await invalidate_cache(f"get_tag_id*{tag_id}*")
+        await invalidate_cache("get_tag_id*")
         return True
     
     async def get_dish_id(self, dish_id: int) -> Dish | None:
@@ -158,6 +190,9 @@ class MenuRepository:
         self.session.add(db_combo)
         await self.session.commit()
         await self.session.refresh(db_combo)
+        await invalidate_cache("get_combos*")
+        await invalidate_cache(f"get_combo_id*{combo.id}*")
+        await invalidate_cache("get_combo_id*")
         return db_combo
 
     async def update_combo(self, combo_id: int, combo: ComboSetUpdate) -> ComboSet | None:
@@ -181,14 +216,20 @@ class MenuRepository:
 
         await self.session.commit()
         await self.session.refresh(db_combo)
+        await invalidate_cache("get_combos*")
+        await invalidate_cache(f"get_combo_id*{combo_id}*")
+        await invalidate_cache("get_combo_id*")
         return db_combo
 
     async def get_combo_id(self, combo_id: int) -> ComboSet | None:
         result = await self.session.execute(
             select(ComboSet).where(ComboSet.id == combo_id)
         )
+        await invalidate_cache(f"get_combo_id*{combo_id}*")
+        await invalidate_cache("get_combo_id*")
         return result.scalar_one_or_none()
 
+    @cache()
     async def get_combos(self, limit: int = 10, offset: int = 0) -> list[ComboSet]:
         result = await self.session.execute(
             select(ComboSet).offset(offset).limit(limit)
@@ -201,6 +242,9 @@ class MenuRepository:
             return False
         await self.session.delete(db_combo)
         await self.session.commit()
+        await invalidate_cache("get_combos*")
+        await invalidate_cache(f"get_combo_id*{combo_id}*")
+        await invalidate_cache("get_combo_id*")
         return True
     
     

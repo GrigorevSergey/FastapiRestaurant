@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE: int = 30
     SUPERUSER_PASSWORD: str
     DB_ECHO_LOG: bool = False
+    REDIS_HOST: str
+    REDIS_PORT: int
 
     class Config:
         env_file = ".env-dev"

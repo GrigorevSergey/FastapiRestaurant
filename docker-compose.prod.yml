@@ -63,6 +63,13 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - my_app_network
+
 networks:
   my_app_network: 
     driver: bridge
