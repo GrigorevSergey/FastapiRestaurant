@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     DB_ECHO_LOG: bool = False
     REDIS_HOST: str
     REDIS_PORT: int
+    RABBITMQ_HOST: str
+    RABBITMQ_PORT: int
+    RABBITMQ_USER: str
+    RABBITMQ_PASSWORD: str
+    RABBITMQ_VHOST: str
 
     class Config:
         env_file = ".env-dev"

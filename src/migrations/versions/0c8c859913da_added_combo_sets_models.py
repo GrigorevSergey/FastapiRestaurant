@@ -1,8 +1,8 @@
 """Added combo sets models
 
-Revision ID: 38ac7e9b3684
+Revision ID: 0c8c859913da
 Revises: 
-Create Date: 2025-05-29 03:25:56.843984
+Create Date: 2025-06-03 02:53:11.481309
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '38ac7e9b3684'
+revision: str = '0c8c859913da'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -71,6 +71,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(), nullable=True),
     sa.Column('description', sa.String(), nullable=True),
     sa.Column('price', sa.Integer(), nullable=True),
+    sa.Column('is_available', sa.Boolean(), nullable=True),
     sa.Column('category_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['category_id'], ['menu.categories.id'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -78,6 +79,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_menu_dishes_description'), 'dishes', ['description'], unique=False, schema='menu')
     op.create_index(op.f('ix_menu_dishes_id'), 'dishes', ['id'], unique=False, schema='menu')
+    op.create_index(op.f('ix_menu_dishes_is_available'), 'dishes', ['is_available'], unique=False, schema='menu')
     op.create_index(op.f('ix_menu_dishes_name'), 'dishes', ['name'], unique=False, schema='menu')
     op.create_index(op.f('ix_menu_dishes_price'), 'dishes', ['price'], unique=False, schema='menu')
     op.create_table('combo_dishes',
@@ -106,6 +108,7 @@ def downgrade() -> None:
     op.drop_table('combo_dishes', schema='menu')
     op.drop_index(op.f('ix_menu_dishes_price'), table_name='dishes', schema='menu')
     op.drop_index(op.f('ix_menu_dishes_name'), table_name='dishes', schema='menu')
+    op.drop_index(op.f('ix_menu_dishes_is_available'), table_name='dishes', schema='menu')
     op.drop_index(op.f('ix_menu_dishes_id'), table_name='dishes', schema='menu')
     op.drop_index(op.f('ix_menu_dishes_description'), table_name='dishes', schema='menu')
     op.drop_table('dishes', schema='menu')

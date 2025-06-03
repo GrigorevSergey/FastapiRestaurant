@@ -14,12 +14,14 @@ class DishCreate(BaseModel):
     description: str
     price: int
     category_id: int
+    is_available: bool = True
 
 class DishUpdate(BaseModel):
     name: str
     description: str
     price: int
     category_id: int
+    is_available: bool = True
     
     
 class TagCreate(BaseModel):

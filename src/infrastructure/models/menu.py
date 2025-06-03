@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String, Boolean
 from src.database import Base
 from sqlalchemy.orm import relationship
 
@@ -20,6 +20,7 @@ class Dish(Base):
     name = Column(String, index=True)
     description = Column(String, index=True)
     price = Column(Integer, index=True)
+    is_available = Column(Boolean, default=True, index=True)
     category_id = Column(Integer, ForeignKey("menu.categories.id"))
     category = relationship("Category", back_populates="dishes")
     tags = relationship("Tag", secondary="menu.dish_tags", back_populates="dishes")
