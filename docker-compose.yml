@@ -14,6 +14,12 @@ services:
       - DATABASE_SCHEMA=public
       - SERVICE_NAME=users
     command: sh -c "uvicorn src.users_main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       database:
         condition: service_healthy
@@ -37,10 +43,65 @@ services:
       - DATABASE_SCHEMA=menu
       - SERVICE_NAME=menu
     command: uvicorn src.menu_main:app --host 0.0.0.0 --port 8001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       database:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+    networks:
+      - my_app_network
+
+  some-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.some
+    ports:
+      - '8002:8002'
+    volumes:
+      - .:/app/
+    working_dir: /app
+    env_file:
+      - .env-dev
+    environment:
+      - SERVICE_NAME=some
+    command: uvicorn src.some_main:app --host 0.0.0.0 --port 8002
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - my_app_network
+
+  order-service:
+    container_name: order-service
+    build:
+      context: .
+      dockerfile: Dockerfile.order
+    ports:
+      - '8003:8003'
+    volumes:
+      - .:/app/
+    working_dir: /app
+    env_file:
+      - .env-dev
+    environment:
+      - DATABASE_SCHEMA=orders
+      - SERVICE_NAME=order
+      - MENU_SERVICE_URL=http://menu-service:8001 
+      - USER_SERVICE_URL=http://users-service:8000
+      
+    command: uvicorn src.order_main:app --host 0.0.0.0 --port 8003
+    depends_on:
+      database:
+        condition: service_healthy
+      users-service:
+        condition: service_healthy
+      menu-service:
         condition: service_healthy
     networks:
       - my_app_network
@@ -97,25 +158,6 @@ services:
     networks:
       - my_app_network
 
-  some-service:
-    build:
-      context: .
-      dockerfile: Dockerfile.some
-    ports:
-      - '8002:8002'
-    volumes:
-      - .:/app/
-    working_dir: /app
-    env_file:
-      - .env-dev
-    environment:
-      - SERVICE_NAME=some
-    command: uvicorn src.some_main:app --host 0.0.0.0 --port 8002
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - my_app_network
 
 networks:
   my_app_network: 

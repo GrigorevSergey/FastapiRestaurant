@@ -1,13 +1,15 @@
 from typing import Dict, Any, Optional
 from src.rabbitmq import RabbitMQClient, MenuEventType
 from src.infrastructure.models.menu import Dish, Category
+from src.infrastructure.repositories.order import OrderRepository
 import logging
 
 logger = logging.getLogger(__name__)
 
 class MenuEventService:
-    def __init__(self, rabbitmq_client: RabbitMQClient):
+    def __init__(self, rabbitmq_client: RabbitMQClient, order_repository: OrderRepository):
         self.rabbitmq = rabbitmq_client
+        self.order_repository = order_repository
 
     async def publish_dish_created(self, dish: Dish) -> None:
         event_data = {

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from src.rabbitmq import RabbitMQClient, MenuEventType
 import asyncio
-import json
+
 
 logger = logging.getLogger(__name__)
 

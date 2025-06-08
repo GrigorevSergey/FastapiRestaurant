@@ -63,6 +63,7 @@ class MenuRepository:
         )
         return result.scalars().all()
     
+    @cache()
     async def get_dish_id(self, dish_id: int) -> Dish | None:
         result = await self.session.execute(
             select(Dish).where(Dish.id == dish_id)
@@ -108,6 +109,7 @@ class MenuRepository:
         await invalidate_cache("get_dish_id*")
         return True
     
+    @cache()
     async def get_dishes_category_id(self, category_id: int) -> list[Dish]:
         result = await self.session.execute(
             select(Dish).where(Dish.category_id == category_id)
@@ -123,6 +125,7 @@ class MenuRepository:
         await invalidate_cache("get_tags*")
         return result.scalars().all()
     
+    @cache()
     async def get_tag_id(self, tag_id: int) -> Tag | None:
         result = await self.session.execute(
             select(Tag).where(Tag.id == tag_id)
@@ -214,6 +217,7 @@ class MenuRepository:
         await invalidate_cache(f"get_combo_id*{combo_id}*")
         return db_combo
 
+    @cache()
     async def get_combo_id(self, combo_id: int) -> ComboSet | None:
         result = await self.session.execute(
             select(ComboSet).where(ComboSet.id == combo_id)

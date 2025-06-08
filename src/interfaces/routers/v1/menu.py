@@ -1,11 +1,12 @@
-from typing import Annotated, List
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
 from src.infrastructure.repositories.menu import MenuRepository
 from src.infrastructure.services.menu_events import MenuEventService
+from src.infrastructure.services.menu_events_service import menu_event_service
 from src.rabbitmq import RabbitMQClient
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from src.schemas.menu_schemas import CategoryCreate, CategoryUpdate, DishCreate, DishUpdate, TagCreate, TagUpdate
 
 
@@ -132,9 +133,9 @@ async def get_dishes_by_category(
     return dishes
 
 async def get_menu_event_service() -> MenuEventService:
-    rabbitmq_client = RabbitMQClient()
-    await rabbitmq_client.connect()
-    return MenuEventService(rabbitmq_client)
+    if menu_event_service is None:
+        raise RuntimeError("Menu event service not initialized")
+    return menu_event_service
 
 @router.post("/dishes", response_model=DishResponse)
 async def create_dish(

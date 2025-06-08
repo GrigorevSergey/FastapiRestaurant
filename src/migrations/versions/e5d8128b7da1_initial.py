@@ -1,8 +1,8 @@
-"""Added combo sets models
+"""initial
 
-Revision ID: 0c8c859913da
+Revision ID: e5d8128b7da1
 Revises: 
-Create Date: 2025-06-03 02:53:11.481309
+Create Date: 2025-06-08 04:45:04.857727
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '0c8c859913da'
+revision: str = 'e5d8128b7da1'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
