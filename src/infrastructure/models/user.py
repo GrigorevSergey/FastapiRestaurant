@@ -4,6 +4,7 @@ from src.database import Base
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {"schema": "account"}
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=True)

@@ -1,7 +1,9 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env-dev", case_sensitive=True)
+    
     POSTGRES_DB: str
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
@@ -20,9 +22,6 @@ class Settings(BaseSettings):
     RABBITMQ_USER: str
     RABBITMQ_PASSWORD: str
     RABBITMQ_VHOST: str
-
-    class Config:
-        env_file = ".env-dev"
-        case_sensitive = True
+    MENU_SERVICE_URL: str
 
 settings = Settings()

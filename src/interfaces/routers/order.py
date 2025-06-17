@@ -9,9 +9,9 @@ import os
 from src.domain.order import OrderStatus
 from src.schemas.order_schemas import OrderUpdate, BasketUpdate
 from src.infrastructure.repositories.order import OrderRepository
+from src.infrastructure.services.menu_events_service import menu_event_service
 from pydantic import BaseModel, ConfigDict
-
-
+from fastapi_limiter.depends import RateLimiter
 
 
 load_dotenv()
@@ -63,7 +63,8 @@ router = APIRouter(
     tags=["order"],
 )
 
-@router.get("/orders", response_model=list[OrderResponse])
+@router.get("/orders", response_model=list[OrderResponse],
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_orders(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(0, ge=0, description="Сдвиг записей"),
@@ -72,7 +73,8 @@ async def get_orders(
     orders = await OrderRepository(db).get_orders(limit, offset)
     return orders
 
-@router.get("/orders/{order_id}", response_model=OrderResponse) 
+@router.get("/orders/{order_id}", response_model=OrderResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_order(
     order_id: int,
     db: AsyncSession = Depends(get_db)
@@ -80,22 +82,24 @@ async def get_order(
     order = await OrderRepository(db).get_order_id(order_id)
     return order
 
-@router.post("/orders", response_model=OrderResponse)
+@router.post("/orders", response_model=OrderResponse,
+             dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def create_order(
     user_id: int = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"{MENU_SERVICE_URL}/user/{user_id}")
-        user = response.json()
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        order = await OrderRepository(db).create_order(user_id)
-        return order
-
+    user = await menu_event_service.get_user(user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден"
+        )
+    
+    order = await OrderRepository(db).create_order(user_id)
     return order
 
-@router.put("/orders/{order_id}", response_model=OrderResponse)
+@router.put("/orders/{order_id}", response_model=OrderResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def update_order(
     order_id: int,
     order: OrderUpdate,
@@ -104,7 +108,8 @@ async def update_order(
     order = await OrderRepository(db).update_order(order_id, order)
     return order
 
-@router.delete("/orders/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/orders/{order_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def delete_order(
     order_id: int,
     db: AsyncSession = Depends(get_db)
@@ -113,7 +118,8 @@ async def delete_order(
     return {"message": "Order deleted successfully"}
 
 
-@router.get("/baskets", response_model=list[BasketResponse])
+@router.get("/baskets", response_model=list[BasketResponse],
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_baskets(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(0, ge=0, description="Сдвиг записей"),
@@ -122,7 +128,8 @@ async def get_baskets(
     baskets = await OrderRepository(db).get_baskets(limit, offset)
     return baskets
 
-@router.get("/baskets/{basket_id}", response_model=BasketResponse)
+@router.get("/baskets/{basket_id}", response_model=BasketResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_basket(
     basket_id: int,
     db: AsyncSession = Depends(get_db)
@@ -130,7 +137,8 @@ async def get_basket(
     basket = await OrderRepository(db).get_basket(basket_id)
     return basket
 
-@router.post("/baskets", response_model=BasketResponse)
+@router.post("/baskets", response_model=BasketResponse,
+             dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def create_basket(
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(get_current_user),
@@ -145,7 +153,8 @@ async def create_basket(
         basket = await OrderRepository(db).create_basket(user_id, dish_id, quantity)
     return basket
 
-@router.put("/baskets/{basket_id}", response_model=BasketResponse)
+@router.put("/baskets/{basket_id}", response_model=BasketResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def update_basket(
     basket_id: int,
     basket: BasketUpdate,
@@ -154,11 +163,32 @@ async def update_basket(
     basket = await OrderRepository(db).update_basket(basket_id, basket)
     return basket
 
-@router.delete("/baskets/{basket_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/baskets/{basket_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def delete_basket(
     basket_id: int,
     db: AsyncSession = Depends(get_db)
 ):
     await OrderRepository(db).delete_basket(basket_id)
     return {"message": "Basket deleted successfully"}
+
+@router.post("/baskets/bask-to-order", response_model=OrderResponse,
+             dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+async def convert_basket_to_order(
+    user_id: int = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        order = await OrderRepository(db).convert_basket_to_order(user_id)
+        return order
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ошибка при создании заказа"
+        )
 

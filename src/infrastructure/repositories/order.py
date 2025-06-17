@@ -2,8 +2,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from src.schemas.order_schemas import OrderItemCreate, OrderItemUpdate, OrderCreate, OrderUpdate, BasketCreate, BasketUpdate
-from src.infrastructure.models.order import Order, OrderItem, Basket
+from src.infrastructure.models.order import Order, OrderItem, Basket, OrderStatus
 from src.redis import cache, invalidate_cache
+import datetime
 
 
 class OrderRepository:
@@ -147,5 +148,47 @@ class OrderRepository:
         await self.session.commit()
         await invalidate_cache("get_basket_id*")
         return True
+
+    async def get_user_basket(self, user_id: int) -> list[Basket]:
+        result = await self.session.execute(
+            select(Basket).filter(Basket.user_id == user_id)
+        )
+        return result.scalars().all()
+
+    async def basket_to_order(self, user_id: int) -> Order:
+        basket_items = await self.get_user_basket(user_id)
+        if not basket_items:
+            raise ValueError("Корзина пуста")
+
+        total_price = sum(item.price * item.quantity for item in basket_items)
+
+        db_order = Order(
+            user_id=user_id,
+            total_price=total_price,
+            status=OrderStatus.PENDING,
+            created_at=datetime.datetime.now(),
+            updated_at=datetime.datetime.now()
+        )
+        self.session.add(db_order)
+        await self.session.flush()
+
+        order_items = []
+        for basket_item in basket_items:
+            order_item = OrderItem(
+                order_id=db_order.id,
+                dish_id=basket_item.item_id,
+                quantity=basket_item.quantity,
+                price=basket_item.price
+            )
+            order_items.append(order_item)
+            self.session.add(order_item)
+
+        for basket_item in basket_items:
+            await self.delete_basket(basket_item.id)
+
+        await self.session.commit()
+        await self.session.refresh(db_order)
+        await invalidate_cache("get_order_id*")
+        return db_order
     
     

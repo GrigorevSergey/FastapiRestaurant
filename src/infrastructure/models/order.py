@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Boolean, ForeignKeyConstraint
+from sqlalchemy import Column, DateTime, Enum as SQLEnum, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 from src.database import Base
 from enum import Enum
@@ -16,7 +16,7 @@ class Order(Base):
     __table_args__ = {"schema": "orders"}
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("account.users.id"), nullable=False)
     total_price = Column(Integer, nullable=False)
     status = Column(SQLEnum(OrderStatus), nullable=False)
     created_at = Column(DateTime, nullable=False)
@@ -29,7 +29,7 @@ class Basket(Base):
     __table_args__ = {"schema": "orders"}
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("account.users.id"), nullable=False)
     item_id = Column(Integer, ForeignKey("menu.dishes.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
     price = Column(Integer, nullable=False)

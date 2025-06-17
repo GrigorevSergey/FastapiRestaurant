@@ -1,7 +1,8 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ConfigDict
 import re
 
 class PhoneRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     number_phone: str
     
     @field_validator("number_phone")
@@ -12,6 +13,7 @@ class PhoneRequest(BaseModel):
         return value
 
 class VerifyRequest(PhoneRequest):
+    model_config = ConfigDict(from_attributes=True)
     code: str
     
     @field_validator("code")
@@ -22,11 +24,13 @@ class VerifyRequest(PhoneRequest):
 
 
 class TokenResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     access_token: str
     token_type: str = "bearer"
 
 
 class CreateSuperUserRequest(PhoneRequest):
+    model_config = ConfigDict(from_attributes=True)
     admin_password: str
     
     @field_validator("admin_password")
@@ -37,5 +41,6 @@ class CreateSuperUserRequest(PhoneRequest):
     
     
 class LoginRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     number_phone: str
     password: str

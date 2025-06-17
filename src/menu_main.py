@@ -1,6 +1,9 @@
 import logging
 logging.basicConfig(level=logging.INFO)
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
+import redis.asyncio as redis
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from debug_toolbar.middleware import DebugToolbarMiddleware
@@ -35,6 +38,10 @@ async def lifespan(app: FastAPI):
         order_repository = OrderRepository(get_db())
         menu_event_service = MenuEventService(rabbitmq_client, order_repository)
         logger.info("Successfully initialized menu event service")
+        
+        redis_connection = redis.from_url("redis://redis:6379")
+        await FastAPILimiter.init(redis_connection)
+        logger.info("Successfully initialized Redis connection")
         
     except Exception as e:
         logger.error(f"Failed to connect to RabbitMQ: {e}")
