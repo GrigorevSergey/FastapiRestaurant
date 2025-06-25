@@ -1,40 +1,109 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import jwt
+from jose.exceptions import ExpiredSignatureError, JWTError
 from passlib.context import CryptContext
-from src.core.config import settings
 import bcrypt
+from src.core.config import settings
 
-# Используем bcrypt напрямую вместо passlib
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Проверяет, соответствует ли обычный пароль хешированному.
+
+    Args:
+        plain_password: Пароль в открытом виде.
+        hashed_password: Хешированный пароль.
+
+    Returns:
+        bool: True, если пароли совпадают, иначе False.
+    """
     try:
         return bcrypt.checkpw(
             plain_password.encode('utf-8'),
             hashed_password.encode('utf-8')
         )
-    except Exception:
+    except Exception as e:
+        print(f"Password verification error: {str(e)}")
         return False
 
 def get_password_hash(password: str) -> str:
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    """
+    Генерирует хеш пароля с использованием bcrypt.
+
+    Args:
+        password: Пароль в открытом виде.
+
+    Returns:
+        str: Хешированный пароль.
+    """
+    try:
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    except Exception as e:
+        raise ValueError(f"Password hashing error: {str(e)}")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Создает JWT-токен с указанными данными и временем жизни.
+
+    Args:
+        data: Данные для включения в токен (например, {"sub": "user_id"}).
+        expires_delta: Время жизни токена. Если None, используется 30 минут.
+
+    Returns:
+        str: Закодированный JWT-токен.
+    """
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now() + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now() + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=30)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
-    return encoded_jwt
-
-def decode_token(token: str) -> dict | None:
     try:
-        return jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
-        )
-    except jwt.PyJWTError:
-        return None
+        encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+        return encoded_jwt
+    except Exception as e:
+        raise ValueError(f"Token creation error: {str(e)}")
+
+def decode_token(token: str) -> dict:
+    """
+    Декодирует JWT-токен и возвращает его содержимое.
+
+    Args:
+        token: JWT-токен.
+
+    Returns:
+        dict: Декодированные данные токена.
+
+    Raises:
+        ValueError: Если токен недействителен или истек.
+    """
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        return payload
+    except ExpiredSignatureError:
+        raise ValueError("Token has expired")
+    except JWTError as e:
+        raise ValueError(f"Invalid token: {str(e)}")
+
+def generate_token_future(sub: str, future_time: Optional[datetime] = None, days: int = 1) -> str:
+
+    if future_time is None:
+        future_time = datetime.utcnow()
+    payload = {
+        "sub": sub,
+        "exp": future_time + timedelta(days=days)
+    }
+    try:
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+        return token
+    except Exception as e:
+        raise ValueError(f"Future token creation error: {str(e)}")
+
+def print_current_time() -> None:
+    """
+    Выводит текущее время в UTC для отладки.
+    """
+    print(f"Current time (UTC): {datetime.utcnow()}")

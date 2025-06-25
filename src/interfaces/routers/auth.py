@@ -1,15 +1,17 @@
 # src/interfaces/routers/auth.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
 from src.schemas.user_schemas import PhoneRequest, VerifyRequest, TokenResponse, CreateSuperUserRequest, LoginRequest
 from src.infrastructure.services.sms import SMSService
 from src.infrastructure.repositories.user import UserRepository
 from src.application.auth.auth import AuthService
-from src.core.security import create_access_token, verify_password
+from src.core.security import create_access_token, decode_token, verify_password
 from src.core.config import settings
 from datetime import timedelta
 from src.infrastructure.models.user import User
+from fastapi.responses import JSONResponse
+from src.core.security import decode_token as decode_jwt
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -87,3 +89,33 @@ async def login(
     except Exception as e:
         print(f"Ошибка при входе: {str(e)}")
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+    
+
+@router.get("/verify", status_code=status.HTTP_200_OK)
+async def verify_token(request: Request):
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "Invalid or missing Authorization header"}
+            )
+        
+        token = auth_header.split(" ")[1]
+        payload = decode_token(token)
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"status": "ok"},
+            headers={"X-User-Id": payload["sub"]}
+        )
+    except ValueError as e:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": str(e)}
+        )
+    except Exception as e:
+        print(f"Verification error: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": f"Internal server error: {str(e)}"}
+        )

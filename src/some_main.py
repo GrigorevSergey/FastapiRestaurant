@@ -2,7 +2,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from src.rabbitmq import RabbitMQClient, MenuEventType
+from src.rabbitmq import RabbitMQClient, EventType
 import asyncio
 
 
@@ -10,16 +10,16 @@ logger = logging.getLogger(__name__)
 
 rabbitmq_client = RabbitMQClient()
 
-async def process_message(data: dict, event_type: MenuEventType):
+async def process_message(data: dict, event_type: EventType):
     try:
         logger.info(f"Received message: {data} with event type: {event_type}")
-        if event_type == MenuEventType.MENU_DISH_CREATED:
+        if event_type == EventType.MENU_DISH_CREATED:
             logger.info(f"New dish created: {data['name']} (ID: {data['dish_id']})")
-        elif event_type == MenuEventType.MENU_UPDATED:
+        elif event_type == EventType.MENU_UPDATED:
             logger.info(f"Menu updated: category {data['name']} (ID: {data['category_id']})")
-        elif event_type == MenuEventType.MENU_PRICE_CHANGED:
+        elif event_type == EventType.MENU_PRICE_CHANGED:
             logger.info(f"Price changed for dish {data['name']}: {data['old_price']} -> {data['new_price']}")
-        elif event_type == MenuEventType.MENU_ITEM_AVAILABILITY:
+        elif event_type == EventType.MENU_ITEM_AVAILABILITY:
             logger.info(f"Availability changed for dish {data['name']}: {data['old_availability']} -> {data['new_availability']}")
     except Exception as e:
         logger.error(f"Error processing message: {e}")
@@ -54,7 +54,7 @@ async def consume_messages():
 
         try:
             logger.info("Attempting to bind queue to exchange")
-            for event_type in MenuEventType:
+            for event_type in EventType:
                 await rabbitmq_client.bind_queue_to_exchange(
                     queue_name=queue_name,
                     exchange_name="menu_events",

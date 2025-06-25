@@ -45,10 +45,17 @@ async def lifespan(app: FastAPI):
     
 app = FastAPI(lifespan=lifespan)
 
-
 app.add_middleware(DebugToolbarMiddleware)
 
 app.include_router(order_router)
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to Order Service"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

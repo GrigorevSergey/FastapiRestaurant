@@ -15,7 +15,6 @@ class SMSService:
         return str(random.randint(1000, 9999))
 
     def _clean_old_codes(self):
-        """Очищает коды старше 5 минут"""
         now = datetime.now()
         self._storage = {
             phone: data for phone, data in self._storage.items()

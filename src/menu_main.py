@@ -55,6 +55,33 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(DebugToolbarMiddleware)
 
+@app.get("/")
+async def root(request: Request):
+    # Логирование заголовков запроса для отладки
+    logger.info(f"Request headers at root endpoint: {dict(request.headers)}")
+    
+    try:
+        return {
+            "service": "Menu Service",
+            "version": "1.0",
+            "endpoints": [
+                "/menu1/menu",
+                "/menu2/menu"
+            ],
+            "request_info": {
+                "client": request.client.host if request.client else "unknown",
+                "method": request.method,
+                "headers": {k: v for k, v in request.headers.items() if k.lower() != "authorization"}
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error in root endpoint: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Error processing request: {str(e)}"}
+        )
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}

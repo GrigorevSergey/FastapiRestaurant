@@ -1,5 +1,5 @@
 from typing import Dict, Any, Optional
-from src.rabbitmq import RabbitMQClient, MenuEventType
+from src.rabbitmq import RabbitMQClient, EventType
 from src.infrastructure.models.menu import Dish, Category
 from src.infrastructure.repositories.order import OrderRepository
 import logging
@@ -21,7 +21,7 @@ class MenuEventService:
             "is_available": dish.is_available
         }
         await self.rabbitmq.publish_event(
-            MenuEventType.MENU_DISH_CREATED,
+            EventType.MENU_DISH_CREATED,
             event_data,
             exchange_name="menu_events"
         )
@@ -34,7 +34,7 @@ class MenuEventService:
             "dishes_count": len(category.dishes) if hasattr(category, 'dishes') else 0
         }
         await self.rabbitmq.publish_event(
-            MenuEventType.MENU_UPDATED,
+            EventType.MENU_UPDATED,
             event_data,
             exchange_name="menu_events"
         )
@@ -48,11 +48,11 @@ class MenuEventService:
             "price_change_percent": ((dish.price - old_price) / old_price) * 100
         }
         await self.rabbitmq.publish_event(
-            MenuEventType.MENU_PRICE_CHANGED,
+            EventType.MENU_PRICE_CHANGED,
             event_data,
             exchange_name="menu_events"
         )
-
+    
     async def publish_availability_changed(self, dish: Dish, old_availability: bool) -> None:
         event_data = {
             "dish_id": dish.id,
@@ -62,21 +62,21 @@ class MenuEventService:
             "category_id": dish.category_id
         }
         await self.rabbitmq.publish_event(
-            MenuEventType.MENU_ITEM_AVAILABILITY,
+            EventType.MENU_ITEM_AVAILABILITY,
             event_data,
             exchange_name="menu_events"
         )
 
-    @RabbitMQClient.event_handler(MenuEventType.MENU_DISH_CREATED)
+    @RabbitMQClient.event_handler(EventType.MENU_DISH_CREATED)
     async def handle_dish_created(self, data: Dict[str, Any]) -> None:
         logger.info(f"New dish created: {data['name']} (ID: {data['dish_id']})")
 
 
-    @RabbitMQClient.event_handler(MenuEventType.MENU_UPDATED)
+    @RabbitMQClient.event_handler(EventType.MENU_UPDATED)
     async def handle_menu_updated(self, data: Dict[str, Any]) -> None:
         logger.info(f"Menu updated: category {data['name']} (ID: {data['category_id']})")
 
-    @RabbitMQClient.event_handler(MenuEventType.MENU_PRICE_CHANGED)
+    @RabbitMQClient.event_handler(EventType.MENU_PRICE_CHANGED)
     async def handle_price_changed(self, data: Dict[str, Any]) -> None:
         logger.info(
             f"Price changed for dish {data['name']}: "
@@ -84,7 +84,7 @@ class MenuEventService:
             f"({data['price_change_percent']:.2f}%)"
         )
 
-    @RabbitMQClient.event_handler(MenuEventType.MENU_ITEM_AVAILABILITY)
+    @RabbitMQClient.event_handler(EventType.MENU_ITEM_AVAILABILITY)
     async def handle_availability_changed(self, data: Dict[str, Any]) -> None:
         logger.info(
             f"Availability changed for dish {data['name']}: "

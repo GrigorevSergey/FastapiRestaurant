@@ -23,5 +23,6 @@ class Settings(BaseSettings):
     RABBITMQ_PASSWORD: str
     RABBITMQ_VHOST: str
     MENU_SERVICE_URL: str
+    USER_SERVICE_URL: str
 
 settings = Settings()

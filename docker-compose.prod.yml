@@ -1,18 +1,50 @@
 services:
+  traefik:
+    image: traefik:latest
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  whoami:
+    image: containous/whoami
+    labels:
+      - "traefik.http.routers.whoami.rule=Host(`whoami.local`)"
+    ports:
+      - "82:80"
+    networks:
+      - my_app_network
+
   users-service:
     build:
       context: .
       dockerfile: Dockerfile.users
     ports:
       - '8000:8000'
+    volumes:
+      - .:/app/
+    working_dir: /app
     env_file:
-      - .env-prod
+      - .env-dev
     environment:
       - DATABASE_SCHEMA=public
       - SERVICE_NAME=users
-    command: uvicorn src.users_main:app --host 0.0.0.0 --port 8000
+    command: sh -c "uvicorn src.users_main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       database:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - my_app_network
@@ -23,14 +55,74 @@ services:
       dockerfile: Dockerfile.menu
     ports:
       - '8001:8001'
+    volumes:
+      - .:/app/
+    working_dir: /app
     env_file:
-      - .env-prod
+      - .env-dev
     environment:
       - DATABASE_SCHEMA=menu
       - SERVICE_NAME=menu
     command: uvicorn src.menu_main:app --host 0.0.0.0 --port 8001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       database:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - my_app_network
+
+  some-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.some
+    ports:
+      - '8002:8002'
+    volumes:
+      - .:/app/
+    working_dir: /app
+    env_file:
+      - .env-dev
+    environment:
+      - SERVICE_NAME=some
+    command: uvicorn src.some_main:app --host 0.0.0.0 --port 8002
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - my_app_network
+
+  order-service:
+    container_name: order-service
+    build:
+      context: .
+      dockerfile: Dockerfile.order
+    ports:
+      - '8003:8003'
+    volumes:
+      - .:/app/
+    working_dir: /app
+    env_file:
+      - .env-dev
+    environment:
+      - DATABASE_SCHEMA=orders
+      - SERVICE_NAME=order
+      - MENU_SERVICE_URL=http://menu-service:8001 
+      - USER_SERVICE_URL=http://users-service:8000
+      
+    command: uvicorn src.order_main:app --host 0.0.0.0 --port 8003
+    depends_on:
+      database:
+        condition: service_healthy
+      users-service:
+        condition: service_healthy
+      menu-service:
         condition: service_healthy
     networks:
       - my_app_network
@@ -44,12 +136,20 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - my_app_network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   database:
     image: postgres:17-alpine
     container_name: postgresapp_fastapi
-    env_file: 
-      - .env-prod
+    environment:
+      - POSTGRES_USER=projectuser
+      - POSTGRES_PASSWORD=123
+      - POSTGRES_DB=fast
     ports:
       - "5432:5432"
     volumes:
@@ -69,6 +169,16 @@ services:
       - "6379:6379"
     networks:
       - my_app_network
+  
+  redis-commander:
+    image: rediscommander/redis-commander
+    environment:
+      - REDIS_HOSTS=redis
+    ports:
+      - "8081:8081"
+    networks:
+      - my_app_network
+
 
 networks:
   my_app_network: 

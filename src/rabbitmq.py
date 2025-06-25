@@ -10,11 +10,16 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
-class MenuEventType(str, Enum):
+class EventType(str, Enum):
     MENU_UPDATED = "menu.updated"
     MENU_PRICE_CHANGED = "menu.price.change"
     MENU_DISH_CREATED = "menu.dish.created"
     MENU_ITEM_AVAILABILITY = "menu.item.availability"
+    ORDER_DELAYED = "order.delayed"
+    ORDER_CREATED = "order.created"
+    ORDER_FAILED = "order.failed"
+    MENU_RESERVED = "menu.reserved"
+    MENU_FAILED = "menu.failed"
 
 class RabbitMQClient:
     def __init__(
@@ -106,7 +111,7 @@ class RabbitMQClient:
 
     async def publish_event(
         self,
-        event_type: MenuEventType,
+        event_type: EventType,
         data: Dict[str, Any],
         exchange_name: str = "amq.topic",
         routing_key: Optional[str] = None
@@ -130,10 +135,36 @@ class RabbitMQClient:
         )
         logger.info(f"[RabbitMQ] Событие опубликовано: {event_type}")
 
+    async def publish_delayed(
+        self,
+        data: Dict[str, Any],
+        exchange_name: str = "amq.topic",
+        routing_key: str = EventType.ORDER_DELAYED
+    ) -> None:
+        logger.info(f"[RabbitMQ] Публикация отложенного события в exchange {exchange_name} с routing_key {routing_key} и данными: {data}")
+        if not self._channel:
+            raise RuntimeError("RabbitMQ channel is not initialized")
+
+        message = aio_pika.Message(
+            body=json.dumps(data).encode(),
+            delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+            content_type="application/json",
+            headers={"event_type": EventType.ORDER_DELAYED},
+            expiration=3600000 
+        )
+
+        exchange = await self.get_exchange(exchange_name)
+        await exchange.publish(
+            message,
+            routing_key=routing_key,
+            mandatory=True
+        )
+        logger.info(f"[RabbitMQ] Отложенное событие опубликовано: {routing_key}")
+
     async def consume_events(
         self,
         queue_name: str,
-        callback: Callable[[Dict[str, Any], MenuEventType], None]
+        callback: Callable[[Dict[str, Any], EventType], None]
     ) -> None:
         logger.info(f"[RabbitMQ] Запуск consume для очереди: {queue_name}")
         queue = await self.declare_queue(queue_name)
@@ -142,7 +173,7 @@ class RabbitMQClient:
             async with message.process():
                 try:
                     data = json.loads(message.body.decode())
-                    event_type = MenuEventType(message.headers.get("event_type"))
+                    event_type = EventType(message.headers.get("event_type"))
                     await callback(data, event_type)
                 except Exception as e:
                     logger.error(f"Error processing message: {e}")
@@ -152,7 +183,7 @@ class RabbitMQClient:
         logger.info(f"[RabbitMQ] Consume запущен для очереди: {queue_name}")
 
     @classmethod
-    def event_handler(cls, event_type: MenuEventType):
+    def event_handler(cls, event_type: EventType):
         def decorator(func: Callable):
             @wraps(func)
             async def wrapper(*args, **kwargs):
@@ -160,4 +191,3 @@ class RabbitMQClient:
             wrapper.event_type = event_type
             return wrapper
         return decorator
-

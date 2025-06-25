@@ -191,4 +191,10 @@ class OrderRepository:
         await invalidate_cache("get_order_id*")
         return db_order
     
+    async def cancel_order(self, order_id: str):
+        order = await self.get_order_id(order_id)
+        if order:
+            order.status = OrderStatus.CANCELLED
+            await self.db.commit()
+    
     
