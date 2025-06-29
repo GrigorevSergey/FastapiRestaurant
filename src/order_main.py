@@ -10,6 +10,8 @@ from src.interfaces.routers.order import router as order_router
 from src.infrastructure.services.menu_events import MenuEventService
 from src.infrastructure.repositories.order import OrderRepository
 from src.database import get_db
+from fastapi_limiter import FastAPILimiter
+from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +36,12 @@ async def lifespan(app: FastAPI):
         menu_event_service = MenuEventService(rabbitmq_client, order_repository)
         logger.info("Successfully initialized menu event service")
         
+        redis = Redis(host="redis", port=6379, db=0, decode_responses=True)
+        await FastAPILimiter.init(redis)
+        logger.info("FastAPILimiter initialized")
+        
     except Exception as e:
-        logger.error(f"Failed to connect to RabbitMQ: {e}")
+        logger.error(f"Failed to connect to RabbitMQ or Redis: {e}")
         raise
         
     yield

@@ -24,5 +24,8 @@ class Settings(BaseSettings):
     RABBITMQ_VHOST: str
     MENU_SERVICE_URL: str
     USER_SERVICE_URL: str
+    CLOUDPAYMENTS_PUBLIC_ID: str
+    CLOUDPAYMENTS_API_SECRET: str
+    PAYMENT_SERVICE_URL: str
 
 settings = Settings()

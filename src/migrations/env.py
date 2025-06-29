@@ -12,6 +12,7 @@ from src.core.config import settings
 from src.infrastructure.models.user import User
 from src.infrastructure.models.menu import *
 from src.infrastructure.models.order import *
+from src.infrastructure.models.payment import *
 
 config = context.config
 

@@ -5,18 +5,23 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
+      - "--accesslog=true"
+      - "--log.level=DEBUG"  
     ports:
       - "80:80"
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - my_app_network  
 
   whoami:
     image: containous/whoami
     labels:
+      - "traefik.enable=true"  
       - "traefik.http.routers.whoami.rule=Host(`whoami.local`)"
-    ports:
-      - "82:80"
+      - "traefik.http.routers.whoami.entrypoints=web"
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
     networks:
       - my_app_network
 
@@ -46,6 +51,11 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.users-service.rule=Host(`users.local`)"
+      - "traefik.http.routers.users-service.entrypoints=web"  
+      - "traefik.http.services.users-service.loadbalancer.server.port=8000"  
     networks:
       - my_app_network
 
@@ -75,6 +85,15 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.menu-service.rule=Host(`menu.local`)"  
+      - "traefik.http.routers.menu-service.entrypoints=web"  
+      - "traefik.http.routers.menu-service.middlewares=menu-auth"
+      - "traefik.http.services.menu-service.loadbalancer.server.port=8001"
+      - "traefik.http.middlewares.menu-auth.forwardauth.address=http://users-service:8000/auth/verify"
+      - "traefik.http.middlewares.menu-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.menu-auth.forwardauth.authResponseHeaders=Authorization,X-User-Id"
     networks:
       - my_app_network
 
@@ -95,6 +114,11 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"  
+      - "traefik.http.routers.some-service.rule=Host(`some.local`)"  
+      - "traefik.http.routers.some-service.entrypoints=web"
+      - "traefik.http.services.some-service.loadbalancer.server.port=8002"
     networks:
       - my_app_network
 
@@ -115,8 +139,13 @@ services:
       - SERVICE_NAME=order
       - MENU_SERVICE_URL=http://menu-service:8001 
       - USER_SERVICE_URL=http://users-service:8000
-      
     command: uvicorn src.order_main:app --host 0.0.0.0 --port 8003
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       database:
         condition: service_healthy
@@ -124,6 +153,54 @@ services:
         condition: service_healthy
       menu-service:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.order-service.rule=Host(`order.local`)"  
+      - "traefik.http.routers.order-service.entrypoints=web"  
+      - "traefik.http.routers.order-service.middlewares=order-auth" 
+      - "traefik.http.services.order-service.loadbalancer.server.port=8003"  
+      - "traefik.http.middlewares.order-auth.forwardauth.address=http://users-service:8000/auth/verify"
+      - "traefik.http.middlewares.order-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.order-auth.forwardauth.authResponseHeaders=Authorization,X-User-Id"
+    networks:
+      - my_app_network
+
+  payment-service:
+    container_name: payment-service
+    build:
+      context: .
+      dockerfile: Dockerfile.payment
+    ports:
+      - '8004:8004'
+    volumes:
+      - .:/app/
+    working_dir: /app
+    env_file:
+      - .env-dev
+    environment:
+      - DATABASE_SCHEMA=payments
+      - SERVICE_NAME=payment
+    command: ["uvicorn", "src.payment_main:app", "--host", "0.0.0.0", "--port", "8004"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      database:
+        condition: service_healthy
+      users-service:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.payment-service.rule=Host(`payment.local`)"
+      - "traefik.http.routers.payment-service.entrypoints=web"
+      - "traefik.http.routers.payment-service.middlewares=payment-auth"
+      - "traefik.http.services.payment-service.loadbalancer.server.port=8004"
+      - "traefik.http.middlewares.payment-auth.forwardauth.address=http://users-service:8000/auth/verify"
+      - "traefik.http.middlewares.payment-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.payment-auth.forwardauth.authResponseHeaders=Authorization,X-User-Id"
     networks:
       - my_app_network
 
@@ -178,7 +255,6 @@ services:
       - "8081:8081"
     networks:
       - my_app_network
-
 
 networks:
   my_app_network: 

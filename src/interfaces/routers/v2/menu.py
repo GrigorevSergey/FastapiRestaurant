@@ -1,22 +1,20 @@
-from typing import Annotated, List
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
 from src.infrastructure.repositories.menu import MenuRepository
 from src.infrastructure.services.menu_events import MenuEventService
 from src.infrastructure.services.menu_events_service import menu_event_service
-from src.rabbitmq import RabbitMQClient
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict
 from src.schemas.menu_schemas import CategoryCreate, CategoryUpdate, DishCreate, DishUpdate, TagCreate, TagUpdate
+from fastapi_limiter.depends import RateLimiter
 
 
 class CategoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
     description: str
-    
-    class Config:
-        from_attributes = True
 
 class DishResponse(BaseModel):
     id: int
@@ -50,8 +48,8 @@ class ComboResponse(BaseModel):
     
 router = APIRouter(prefix="/menu", tags=["v2"])
 
-
-@router.get("/categories", response_model=list[CategoryResponse])
+@router.get("/categories", response_model=list[CategoryResponse],
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_categories(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(0, ge=0, description="Сдвиг записей"),
@@ -60,7 +58,8 @@ async def get_categories(
     categories = await MenuRepository(db).get_categories(offset, limit)
     return categories
 
-@router.get("/categories/{category_id}", response_model=CategoryResponse)
+@router.get("/categories/{category_id}", response_model=CategoryResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_category(
     category_id: int,
     db: AsyncSession = Depends(get_db)
@@ -73,7 +72,8 @@ async def get_category(
         )
     return CategoryResponse.model_validate(category)
 
-@router.post("/categories", response_model=CategoryResponse)
+@router.post("/categories", response_model=CategoryResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def create_category(
     category: CategoryCreate,
     db: AsyncSession = Depends(get_db)
@@ -81,7 +81,8 @@ async def create_category(
     new_category = await MenuRepository(db).create_category(category)
     return CategoryResponse.model_validate(new_category)
 
-@router.put("/categories/{category_id}", response_model=CategoryResponse)
+@router.put("/categories/{category_id}", response_model=CategoryResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def update_category(
     category_id: int,
     category: CategoryUpdate,
@@ -95,7 +96,8 @@ async def update_category(
         )
     return CategoryResponse.model_validate(updated_category)
 
-@router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def delete_category(
     category_id: int,
     db: AsyncSession = Depends(get_db)
@@ -110,7 +112,8 @@ async def delete_category(
 
 
 
-@router.get("/dishes", response_model=list[DishResponse])
+@router.get("/dishes", response_model=list[DishResponse],
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_dishes(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(0, ge=0, description="Сдвиг записей"),
@@ -119,7 +122,8 @@ async def get_dishes(
     dishes = await MenuRepository(db).get_dishes(limit, offset)
     return dishes
 
-@router.get("/dishes/{category_id}", response_model=list[DishResponse])
+@router.get("/dishes/{category_id}", response_model=list[DishResponse],
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_dishes_by_category(
     category_id: int,
     db: AsyncSession = Depends(get_db)
@@ -137,7 +141,8 @@ async def get_menu_event_service() -> MenuEventService:
         raise RuntimeError("Menu event service not initialized")
     return menu_event_service
 
-@router.post("/dishes", response_model=DishResponse)
+@router.post("/dishes", response_model=DishResponse,
+             dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def create_dish(
     dish: DishCreate,
     db: AsyncSession = Depends(get_db),
@@ -147,7 +152,8 @@ async def create_dish(
     await event_service.publish_dish_created(new_dish)
     return DishResponse.model_validate(new_dish)
 
-@router.put("/dishes/{dish_id}", response_model=DishResponse)
+@router.put("/dishes/{dish_id}", response_model=DishResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def update_dish(
     dish_id: int,
     dish: DishUpdate,
@@ -167,7 +173,8 @@ async def update_dish(
         await event_service.publish_availability_changed(updated_dish, old_dish.is_available)
     return DishResponse.model_validate(updated_dish)
 
-@router.delete("/dishes/{dish_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/dishes/{dish_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def delete_dish(
     dish_id: int,
     db: AsyncSession = Depends(get_db)
@@ -180,7 +187,8 @@ async def delete_dish(
         )
     return {"detail": "Dish deleted successfully"}
 
-@router.get("/tags", response_model=list[TagResponse])
+@router.get("/tags", response_model=list[TagResponse],
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_tags(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(0, ge=0, description="Сдвиг записей"),
@@ -189,7 +197,8 @@ async def get_tags(
     tags = await MenuRepository(db).get_tags(limit, offset)
     return tags
 
-@router.get("/tags/{tag_id}", response_model=TagResponse)
+@router.get("/tags/{tag_id}", response_model=TagResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_tag(
     tag_id: int,
     db: AsyncSession = Depends(get_db)
@@ -202,7 +211,8 @@ async def get_tag(
         )
     return TagResponse.model_validate(tag)
 
-@router.post("/tags", response_model=TagResponse)
+@router.post("/tags", response_model=TagResponse,
+             dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def create_tag(
     tag: TagCreate,
     db: AsyncSession = Depends(get_db)
@@ -210,7 +220,8 @@ async def create_tag(
     new_tag = await MenuRepository(db).create_tag(tag)
     return TagResponse.model_validate(new_tag)
 
-@router.put("/tags/{tag_id}", response_model=TagResponse)
+@router.put("/tags/{tag_id}", response_model=TagResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def update_tag(
     tag_id: int,
     tag: TagUpdate,
@@ -224,7 +235,8 @@ async def update_tag(
         )
     return TagResponse.model_validate(updated_tag)
 
-@router.delete("/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def delete_tag(
     tag_id: int,
     db: AsyncSession = Depends(get_db)
@@ -237,7 +249,8 @@ async def delete_tag(
         )
     return {"detail": "Tag deleted successfully"}
 
-@router.get("/combo_sets", response_model=list[ComboResponse])
+@router.get("/combo_sets", response_model=list[ComboResponse],
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_combos(db: AsyncSession = Depends(get_db)):
     combos = await MenuRepository(db).get_combos()
     result = []
@@ -254,7 +267,8 @@ async def get_combos(db: AsyncSession = Depends(get_db)):
         )
     return result
     
-@router.get("/combo_sets/{combo_id}", response_model=ComboResponse)
+@router.get("/combo_sets/{combo_id}", response_model=ComboResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def get_combo(
     combo_id: int,
     db: AsyncSession = Depends(get_db)
@@ -274,7 +288,8 @@ async def get_combo(
         dish_ids=[dish.id for dish in combo.dishes]
     )
 
-@router.post("/combo_sets", response_model=ComboResponse)
+@router.post("/combo_sets", response_model=ComboResponse,
+             dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def create_combo(
     combo: ComboResponse,
     db: AsyncSession = Depends(get_db)
@@ -289,7 +304,8 @@ async def create_combo(
         dish_ids=[dish.id for dish in new_combo.dishes]
     )
     
-@router.put("/combo_sets/{combo_id}", response_model=ComboResponse)
+@router.put("/combo_sets/{combo_id}", response_model=ComboResponse,
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def update_combo(
     combo_id: int,
     combo: ComboResponse,
@@ -309,7 +325,9 @@ async def update_combo(
         price=updated_combo.price,
         dish_ids=[dish.id for dish in updated_combo.dishes]
     )
-@router.delete("/combo_sets/{combo_id}", status_code=status.HTTP_204_NO_CONTENT)
+
+@router.delete("/combo_sets/{combo_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def delete_combo(
     combo_id: int,
     db: AsyncSession = Depends(get_db)

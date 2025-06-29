@@ -165,6 +165,45 @@ services:
     networks:
       - my_app_network
 
+  payment-service:
+    container_name: payment-service
+    build:
+      context: .
+      dockerfile: Dockerfile.payment
+    ports:
+      - '8004:8004'
+    volumes:
+      - .:/app/
+    working_dir: /app
+    env_file:
+      - .env-dev
+    environment:
+      - DATABASE_SCHEMA=payments
+      - SERVICE_NAME=payment
+    command: ["uvicorn", "src.payment_main:app", "--host", "0.0.0.0", "--port", "8004"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      database:
+        condition: service_healthy
+      users-service:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.payment-service.rule=Host(`payment.local`)"
+      - "traefik.http.routers.payment-service.entrypoints=web"
+      - "traefik.http.routers.payment-service.middlewares=payment-auth"
+      - "traefik.http.services.payment-service.loadbalancer.server.port=8004"
+      - "traefik.http.middlewares.payment-auth.forwardauth.address=http://users-service:8000/auth/verify"
+      - "traefik.http.middlewares.payment-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.payment-auth.forwardauth.authResponseHeaders=Authorization,X-User-Id"
+    networks:
+      - my_app_network
+
   rabbitmq:
     image: rabbitmq:4.1.0-management-alpine
     ports:

@@ -23,6 +23,7 @@ rabbit = RabbitMQClient()
 load_dotenv()
 MENU_SERVICE_URL = os.getenv("MENU_SERVICE_URL")
 USER_SERVICE_URL = os.getenv("USER_SERVICE_URL")
+PAYMENT_SERVICE_URL = os.getenv("PAYMENT_SERVICE_URL")
 
 
 class OrderItemResponse(BaseModel):
@@ -74,6 +75,7 @@ router = APIRouter(
 async def process_order(order_id: str, user_id: int, items: list):
     user_service_ok = await RetryService.check_health(USER_SERVICE_URL)
     menu_service_ok = await RetryService.check_health(MENU_SERVICE_URL)
+    payment_service_ok = await RetryService.check_health(PAYMENT_SERVICE_URL)
     if not user_service_ok or not menu_service_ok:
         await rabbit.publish_event(EventType.ORDER_FAILED, {
             "user_id": user_id,
@@ -254,6 +256,30 @@ async def convert_basket_to_order(
 ):
     try:
         order = await OrderRepository(db).convert_basket_to_order(user_id)
+        
+        if PAYMENT_SERVICE_URL:
+            try:
+                print(f"Создание платежа для заказа {order.id}")
+                async with httpx.AsyncClient() as client:
+                    payment_data = {
+                        "order_id": order.id,
+                        "amount": order.total_price,
+                    }
+                    response = await client.post(
+                        f"{PAYMENT_SERVICE_URL}/payments/create",
+                        json=payment_data
+                    )
+                    if response.status_code == 201:
+                        payment_info = response.json()
+                        print(f"Платеж создан: {payment_info}")
+                        logger.info(f"Создан платеж для заказа {order.id}: {payment_info}")
+                    else:
+                        print(f"Ошибка создания платежа: {response.text}")
+                        logger.warning(f"Не удалось создать платеж для заказа {order.id}")
+            except Exception as e:
+                print(f"Ошибка при обращении к Payment Service: {e}")
+                logger.error(f"Ошибка интеграции с Payment Service: {e}")
+        
         return order
     except ValueError as e:
         raise HTTPException(
@@ -264,5 +290,43 @@ async def convert_basket_to_order(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Ошибка при создании заказа"
+        )
+
+
+@router.get("/orders/{order_id}/payment")
+async def get_order_payment(
+    order_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        order = await OrderRepository(db).get_order_id(order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Заказ {order_id} не найден"
+            )
+        
+        if PAYMENT_SERVICE_URL:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{PAYMENT_SERVICE_URL}/payments/order/{order_id}")
+                if response.status_code == 200:
+                    return response.json()
+                elif response.status_code == 404:
+                    return {"message": f"Платеж для заказа {order_id} не найден"}
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Ошибка получения информации о платеже"
+                    )
+        else:
+            return {"message": "Payment Service недоступен"}
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка получения платежа для заказа {order_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
         )
 
