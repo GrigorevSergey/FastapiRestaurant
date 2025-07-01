@@ -28,7 +28,7 @@ class PaymentRepository:
             logger.error(f"Ошибка получения списка платежей: {e}")
             raise
 
-    @cache(expire=300)
+    @cache()
     async def get_payment_by_id(self, payment_id: int) -> Payment | None:
         try:
             result = await self.session.execute(

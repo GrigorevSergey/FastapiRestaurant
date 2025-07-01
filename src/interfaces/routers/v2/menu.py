@@ -1,10 +1,10 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
 from src.infrastructure.repositories.menu import MenuRepository
 from src.infrastructure.services.menu_events import MenuEventService
-from src.infrastructure.services.menu_events_service import menu_event_service
+from src.core.dependencies import get_current_admin_user, get_menu_event_service
 from pydantic import BaseModel, ConfigDict
 from src.schemas.menu_schemas import CategoryCreate, CategoryUpdate, DishCreate, DishUpdate, TagCreate, TagUpdate
 from fastapi_limiter.depends import RateLimiter
@@ -73,7 +73,7 @@ async def get_category(
     return CategoryResponse.model_validate(category)
 
 @router.post("/categories", response_model=CategoryResponse,
-            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+            dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def create_category(
     category: CategoryCreate,
     db: AsyncSession = Depends(get_db)
@@ -82,7 +82,7 @@ async def create_category(
     return CategoryResponse.model_validate(new_category)
 
 @router.put("/categories/{category_id}", response_model=CategoryResponse,
-            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+            dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def update_category(
     category_id: int,
     category: CategoryUpdate,
@@ -97,7 +97,7 @@ async def update_category(
     return CategoryResponse.model_validate(updated_category)
 
 @router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT,
-               dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+               dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def delete_category(
     category_id: int,
     db: AsyncSession = Depends(get_db)
@@ -136,13 +136,8 @@ async def get_dishes_by_category(
         )
     return dishes
 
-async def get_menu_event_service() -> MenuEventService:
-    if menu_event_service is None:
-        raise RuntimeError("Menu event service not initialized")
-    return menu_event_service
-
 @router.post("/dishes", response_model=DishResponse,
-             dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+             dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def create_dish(
     dish: DishCreate,
     db: AsyncSession = Depends(get_db),
@@ -153,7 +148,7 @@ async def create_dish(
     return DishResponse.model_validate(new_dish)
 
 @router.put("/dishes/{dish_id}", response_model=DishResponse,
-            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+            dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def update_dish(
     dish_id: int,
     dish: DishUpdate,
@@ -174,7 +169,7 @@ async def update_dish(
     return DishResponse.model_validate(updated_dish)
 
 @router.delete("/dishes/{dish_id}", status_code=status.HTTP_204_NO_CONTENT,
-               dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+               dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def delete_dish(
     dish_id: int,
     db: AsyncSession = Depends(get_db)
@@ -212,7 +207,7 @@ async def get_tag(
     return TagResponse.model_validate(tag)
 
 @router.post("/tags", response_model=TagResponse,
-             dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+             dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def create_tag(
     tag: TagCreate,
     db: AsyncSession = Depends(get_db)
@@ -221,7 +216,7 @@ async def create_tag(
     return TagResponse.model_validate(new_tag)
 
 @router.put("/tags/{tag_id}", response_model=TagResponse,
-            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+            dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def update_tag(
     tag_id: int,
     tag: TagUpdate,
@@ -236,7 +231,7 @@ async def update_tag(
     return TagResponse.model_validate(updated_tag)
 
 @router.delete("/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT,
-               dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+               dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def delete_tag(
     tag_id: int,
     db: AsyncSession = Depends(get_db)
@@ -289,7 +284,7 @@ async def get_combo(
     )
 
 @router.post("/combo_sets", response_model=ComboResponse,
-             dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+             dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def create_combo(
     combo: ComboResponse,
     db: AsyncSession = Depends(get_db)
@@ -305,7 +300,7 @@ async def create_combo(
     )
     
 @router.put("/combo_sets/{combo_id}", response_model=ComboResponse,
-            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+            dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def update_combo(
     combo_id: int,
     combo: ComboResponse,
@@ -327,7 +322,7 @@ async def update_combo(
     )
 
 @router.delete("/combo_sets/{combo_id}", status_code=status.HTTP_204_NO_CONTENT,
-               dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+               dependencies=[Depends(RateLimiter(times=10, seconds=60)), Depends(get_current_admin_user)])
 async def delete_combo(
     combo_id: int,
     db: AsyncSession = Depends(get_db)
@@ -339,6 +334,23 @@ async def delete_combo(
             detail="Combo not found"
         )
     return {"detail": "Combo deleted successfully"}
+
+# Алиас-роутер для поддержки /dishes/{dish_id} без префикса (для order-service)
+alias_router = APIRouter()
+
+@alias_router.get("/dishes/{dish_id}", response_model=DishResponse,
+                  dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+async def get_dish_by_id_alias(
+    dish_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    dish = await MenuRepository(db).get_dish_id(dish_id)
+    if not dish:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dish not found"
+        )
+    return DishResponse.model_validate(dish)
 
 
 
