@@ -41,5 +41,5 @@ class WebhookPayload(BaseModel):
 class PaymentCreateRequest(BaseModel):
     invoice_id: int = Field(..., description="ID заказа")
     amount: int = Field(..., gt=0, description="Сумма в копейках")
-    
-    
+
+

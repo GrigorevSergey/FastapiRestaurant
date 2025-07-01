@@ -5,10 +5,10 @@ from enum import Enum
 
 
 class PaymentStatus(str, Enum):
-    PENDING = "pending"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
 
 
 class Payment(Base):
@@ -22,7 +22,7 @@ class Payment(Base):
     transaction_id = Column(String(255), nullable=True)  
     created_at = Column(DateTime, nullable=False)
     updated_at = Column(DateTime, nullable=False)
-    
-  
+
+
 
 

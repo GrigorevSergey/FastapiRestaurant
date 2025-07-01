@@ -49,7 +49,7 @@ class PaymentService:
             return PaymentResponse.model_validate(db_payment)
             
         except Exception as e:
-            logger.error(f"Ошибка создания платежа для заказа {invoice_id}: {e}")
+            logger.error(f"Ошибка создания платежа: {e}")
             raise
     
     async def get_payment_by_id(self, payment_id: int) -> Optional[PaymentResponse]:

@@ -44,7 +44,7 @@ class PaymentRepository:
         try:
             result = await self.session.execute(
                 select(Payment)
-                .filter(Payment.invoice_id == invoice_id)
+                .filter(Payment.invoice_id == order_id)
             )
             return result.scalar_one_or_none()
         except Exception as e:
@@ -66,7 +66,7 @@ class PaymentRepository:
             await self.session.refresh(db_payment)
             await invalidate_cache("get_payment_by_id*")
             
-            logger.info(f"Создан платеж ID: {db_payment.id} для заказа {payment.order_id}")
+            logger.info(f"Создан платеж ID: {db_payment.id} для заказа {payment.invoice_id}")
             return db_payment
         except Exception as e:
             await self.session.rollback()

@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
         
         order_repository = OrderRepository(get_db())
         menu_event_service = MenuEventService(rabbitmq_client, order_repository)
+        app.state.menu_event_service = menu_event_service
         logger.info("Successfully initialized menu event service")
         
         redis_connection = redis.from_url("redis://redis:6379")
@@ -57,7 +58,6 @@ app.add_middleware(DebugToolbarMiddleware)
 
 @app.get("/")
 async def root(request: Request):
-    # Логирование заголовков запроса для отладки
     logger.info(f"Request headers at root endpoint: {dict(request.headers)}")
     
     try:
@@ -97,7 +97,8 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal server error"}
     )
 
-async def get_menu_event_service() -> MenuEventService:
-    if menu_event_service is None:
+async def get_menu_event_service(request: Request) -> MenuEventService:
+    service = getattr(request.app.state, "menu_event_service", None)
+    if service is None:
         raise RuntimeError("Menu event service not initialized")
-    return menu_event_service
+    return service

@@ -16,6 +16,8 @@ from fastapi_limiter.depends import RateLimiter
 from src.infrastructure.services.retry import RetryService
 from src.rabbitmq import EventType, RabbitMQClient
 import logging
+from src.schemas.order_schemas import BasketCreate
+
 
 logger = logging.getLogger(__name__)
 rabbit = RabbitMQClient()
@@ -217,7 +219,7 @@ async def get_basket(
              dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def create_basket(
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(get_current_user),
+    user = Depends(get_current_user),
     dish_id: int = Query(..., description="ID блюда"),
     quantity: int = Query(..., description="Количество")
 ):
@@ -226,8 +228,15 @@ async def create_basket(
         dish = response.json()
         if not dish:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dish not found")
-        basket = await OrderRepository(db).create_basket(user_id, dish_id, quantity)
-    return basket
+        basket_create = BasketCreate(user_id=user.id, dish_id=dish_id, quantity=quantity)
+        basket = await OrderRepository(db).create_basket(basket_create)
+    # Приводим к BasketResponse с dish_id
+    return BasketResponse(
+        id=basket.id,
+        user_id=basket.user_id,
+        dish_id=basket.item_id,  # соответствие схеме
+        quantity=basket.quantity
+    )
 
 @router.put("/baskets/{basket_id}", response_model=BasketResponse,
             dependencies=[Depends(RateLimiter(times=10, seconds=60))])
@@ -237,7 +246,14 @@ async def update_basket(
     db: AsyncSession = Depends(get_db)
 ):
     basket = await OrderRepository(db).update_basket(basket_id, basket)
-    return basket
+    if not basket:
+        raise HTTPException(status_code=404, detail="Basket not found")
+    return BasketResponse(
+        id=basket.id,
+        user_id=basket.user_id,
+        dish_id=basket.item_id,
+        quantity=basket.quantity
+    )
 
 @router.delete("/baskets/{basket_id}", status_code=status.HTTP_204_NO_CONTENT,
                dependencies=[Depends(RateLimiter(times=10, seconds=60))])

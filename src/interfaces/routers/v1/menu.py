@@ -1,10 +1,10 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
 from src.infrastructure.repositories.menu import MenuRepository
 from src.infrastructure.services.menu_events import MenuEventService
-from src.infrastructure.services.menu_events_service import menu_event_service
+from src.core.dependencies import get_menu_event_service
 from pydantic import BaseModel, ConfigDict
 from src.schemas.menu_schemas import CategoryCreate, CategoryUpdate, DishCreate, DishUpdate, TagCreate, TagUpdate
 from fastapi_limiter.depends import RateLimiter
@@ -135,11 +135,6 @@ async def get_dishes_by_category(
             detail="No dishes found for this category"
         )
     return dishes
-
-async def get_menu_event_service() -> MenuEventService:
-    if menu_event_service is None:
-        raise RuntimeError("Menu event service not initialized")
-    return menu_event_service
 
 @router.post("/dishes", response_model=DishResponse,
              dependencies=[Depends(RateLimiter(times=10, seconds=60))])
@@ -339,6 +334,23 @@ async def delete_combo(
             detail="Combo not found"
         )
     return {"detail": "Combo deleted successfully"}
+
+# Алиас-роутер для поддержки /dishes/{dish_id} без префикса (для order-service)
+alias_router = APIRouter()
+
+@alias_router.get("/dishes/{dish_id}", response_model=DishResponse,
+                  dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+async def get_dish_by_id_alias(
+    dish_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    dish = await MenuRepository(db).get_dish_id(dish_id)
+    if not dish:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dish not found"
+        )
+    return DishResponse.model_validate(dish)
 
 
 
