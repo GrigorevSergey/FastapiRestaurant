@@ -28,8 +28,6 @@ class DishUpdate(BaseModel):
     is_available: bool = True
     
     
-    
-    
 class TagCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     name: str
