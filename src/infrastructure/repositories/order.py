@@ -122,9 +122,9 @@ class OrderRepository:
     async def create_basket(self, basket: BasketCreate) -> Basket:
         db_basket = Basket(
             user_id=basket.user_id,
-            item_id=basket.dish_id,  # исправлено: item_id вместо dish_id
+            item_id=basket.dish_id,  
             quantity=basket.quantity,
-            price=0  # TODO: получить цену из menu, если нужно
+            price=0  
         )
         self.session.add(db_basket)
         await self.session.commit()
